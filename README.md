@@ -77,12 +77,16 @@ raiserror (@msg, 0, 0) with nowait;
 
 ### Dump tables
 
-For **debugging purposes only** there is support for
-dumping table contents to logs:
+There is support for dumping table contents to logs.
+In MS SQL, if you create a table with a name starting
+`##`, it can be accessed by other connections. Then,
+if you log *only* the name of the table starting with `##`
+then this library will open a second connection
+to the DB to download the contents.
+Example:
 
 ```sql
-insert into ##log1
-select top(100) a, b, c from mytable;
+select top(100) a, b, c into ##log1 from mytable;
 
 raiserror ('stderr:##log1', 0, 0) with nowait
 ```

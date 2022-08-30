@@ -127,14 +127,14 @@ func (l LogrusLogger) Log(ctx context.Context, category msdsn.Log, msg string) {
 			logger = logger.WithFields(fields)
 		}
 
-		if logTableNameRegexp.MatchString(logmsg) {
+		if l.Querier != nil && logTableNameRegexp.MatchString(logmsg) {
 			tableDumpStructured(ctx, logger, logrusLevel, l.Querier, logmsg)
 			dropTable(ctx, l.Querier, logmsg)
 		} else {
 			logAtLevel(logger, logrusLevel, logmsg)
 		}
 	case "stderr":
-		if logTableNameRegexp.MatchString(logmsg) {
+		if l.Querier != nil && logTableNameRegexp.MatchString(logmsg) {
 			tableDumpPrettyPrint(ctx, l.Stderr, l.Querier, logmsg)
 			dropTable(ctx, l.Querier, logmsg)
 		} else {
