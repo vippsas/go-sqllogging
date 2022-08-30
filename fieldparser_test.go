@@ -1,4 +1,4 @@
-package sqllog
+package sqllogging
 
 import (
 	"fmt"
@@ -47,7 +47,8 @@ func TestParseStringValue(t *testing.T) {
 		{input: "no bracket at the end", found: false},
 	}
 	for _, tc := range tests {
-		s := scanner{input: "abcd" + tc.input, pos: 4}
+		tc.input = "abcd" + tc.input
+		s := scanner{input: tc.input, pos: 4}
 		value, found := parseStringValue(&s)
 		require.Equal(t, tc.found, found)
 		if found {

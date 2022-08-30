@@ -1,4 +1,4 @@
-package sqllog
+package sqllogging
 
 import (
 	"github.com/sirupsen/logrus"

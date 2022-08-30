@@ -1,6 +1,6 @@
 // Package sqllog provides a logging hook for go-mssqldb that turns mssqldb
 // errors into proper logging using logrus. See README.md.
-package sqllog
+package sqllogging
 
 import (
 	"context"

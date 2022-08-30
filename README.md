@@ -1,4 +1,4 @@
-# go-sqllog: Tools for logging from SQL
+# go-sqllogging: Tools for logging from SQL
 
 When developing stored procedures it can be useful to log directly
 to the service output. This package facilitates this for the
@@ -16,11 +16,11 @@ func init() {
 	// that gets the logging setup to use from the 
 	// This same hook is also useful for other logging
 	// libraries than logrus.
-	sqllog.InstallMssql()  
+	sqllogging.InstallMssql()  
 }
 
 ... = dbi.ExecContext(
-	sqllog.With(ctx, logger.WithField("inSql", true), dbi),
+	sqllogging.With(ctx, logger.WithField("inSql", true), dbi),
 	`my_stored_procedure`, ...)
 ```
 
@@ -94,8 +94,9 @@ raiserror ('stderr:##log1', 0, 0) with nowait
   and log the contents, using the optional order by clause.
 * After the log statement, the table should be left alone.
   The logging utility will `drop` it after logging it.
+* The log query will be `select top(1000) * from ##log1 order by 1`;
+  i.e. max 1000 rows and order by the 1st column.
 
-TODO: Support a safe order by clause in the log string.
 
 This feature is the reason for passing the `*sql.DB` instance
 to `sqllog.With()`. If you do not use this feature you may

@@ -1,4 +1,4 @@
-package sqllog
+package sqllogging
 
 import (
 	"context"
@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/denisenkom/go-mssqldb/msdsn"
 	"github.com/sirupsen/logrus"
+	"io"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -33,9 +35,17 @@ type LogrusMssqlLogger interface {
 	Log(ctx context.Context, logger logrus.FieldLogger, category msdsn.Log, msg string)
 }
 
-type CtxQuerier interface {
+type QuerierExecer interface {
 	QueryContext(ctx context.Context, query string, args ...interface{}) (*sql.Rows, error)
 	QueryRowContext(ctx context.Context, query string, args ...interface{}) *sql.Row
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+}
+
+// DB interface is used simply to avoid a potentially common mistake of passing
+// a *Conn or *Tx to With()
+type DB interface {
+	QuerierExecer
+	Conn(ctx context.Context) (*sql.Conn, error)
 }
 
 // StandardFallbackLogrusMssqlLogger defines the behaviour if no log level
@@ -53,7 +63,7 @@ func (s StandardFallbackLogrusMssqlLogger) Log(ctx context.Context, logger logru
 }
 
 // With configures a standard opinionated logger, see LogrusLogger.
-func With(ctx context.Context, logger logrus.FieldLogger, querier CtxQuerier, fallback ...LogrusMssqlLogger) context.Context {
+func With(ctx context.Context, logger logrus.FieldLogger, dbi DB, fallback ...LogrusMssqlLogger) context.Context {
 	var f LogrusMssqlLogger
 	switch len(fallback) {
 	case 0:
@@ -69,8 +79,9 @@ func With(ctx context.Context, logger logrus.FieldLogger, querier CtxQuerier, fa
 	}
 	return WithLogger(ctx, LogrusLogger{
 		Logger:   logger,
-		Querier:  querier,
+		Querier:  dbi,
 		Fallback: f,
+		Stderr:   os.Stderr,
 	})
 }
 
@@ -78,10 +89,14 @@ func With(ctx context.Context, logger logrus.FieldLogger, querier CtxQuerier, fa
 // SQL log string and turns it into a nice logrus log; see README.md
 // for further description.
 type LogrusLogger struct {
-	Logger   logrus.FieldLogger
-	Querier  CtxQuerier
-	Fallback LogrusMssqlLogger
+	Logger   logrus.FieldLogger // Normal logrus output
+	Querier  QuerierExecer      // For ##log-table dumping, this is used to fetch table data
+	Fallback LogrusMssqlLogger  // If `<level>:` prefix is not present, forward to this logger
+	Stderr   io.Writer          // The special "stderr:" level is written here
 }
+
+// For simplicty, only support a very restricted set of names for log tables..
+var logTableNameRegexp = regexp.MustCompile(`^##log[a-z0-9_]+$`)
 
 func (l LogrusLogger) Log(ctx context.Context, category msdsn.Log, msg string) {
 	logger := l.Logger
@@ -111,13 +126,32 @@ func (l LogrusLogger) Log(ctx context.Context, category msdsn.Log, msg string) {
 		if fields != nil {
 			logger = logger.WithFields(fields)
 		}
-		logAtLevel(logger, logrusLevel, logmsg)
+
+		if logTableNameRegexp.MatchString(logmsg) {
+			tableDumpStructured(ctx, logger, logrusLevel, l.Querier, logmsg)
+			dropTable(ctx, l.Querier, logmsg)
+		} else {
+			logAtLevel(logger, logrusLevel, logmsg)
+		}
 	case "stderr":
-		_, _ = fmt.Fprintln(os.Stderr, logmsg)
+		if logTableNameRegexp.MatchString(logmsg) {
+			tableDumpPrettyPrint(ctx, l.Stderr, l.Querier, logmsg)
+			dropTable(ctx, l.Querier, logmsg)
+		} else {
+			_, _ = fmt.Fprintln(l.Stderr, logmsg)
+		}
 	default:
 		if level != "" {
 			logmsg = level + ":" + logmsg
 		}
 		l.Fallback.Log(ctx, logger, category, msg)
 	}
+}
+
+func dropTable(ctx context.Context, querier QuerierExecer, tablename string) {
+	_, _ = querier.ExecContext(ctx, "drop table "+sqlQuotename(tablename))
+}
+
+func sqlQuotename(name string) string {
+	return "[" + strings.ReplaceAll(name, "]", "]]") + "]"
 }
