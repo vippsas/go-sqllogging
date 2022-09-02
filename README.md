@@ -53,7 +53,7 @@ fallback log handler.
 Additionally, the log level `stderr:` writes directly to standard
 output, not to the configured `logger`, in case this is useful
 during debugging. This is not suitable for production code
-(instead, configure a custom logger using `sqllog.WithLogger`
+(instead, configure a custom logger using `sqllogging.WithLogger`
 that writes to stderr).
 
 ### Log fields

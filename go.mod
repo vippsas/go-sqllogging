@@ -1,4 +1,4 @@
-module github.com/vippsas/go-sqllog
+module github.com/vippsas/go-sqllogging
 
 go 1.18
 
