@@ -26,8 +26,8 @@ go
 
 create procedure [code].log(
     @level varchar(max),
-    @k1 varchar(max),
-    @v1 sql_variant,
+    @k1 varchar(max) = null,
+    @v1 sql_variant = null,
     @k2 varchar(max) = null,
     @v2 sql_variant = null,
     @k3 varchar(max) = null,
