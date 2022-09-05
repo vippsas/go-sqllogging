@@ -47,12 +47,12 @@ func TestLogrusLogging(t *testing.T) {
 	// Field parsing
 	_, err = dbi.ExecContext(With(ctx, logger, nil), `
     declare @msg varchar(max);
-    set @msg = concat('info:  a=1      b=', quotename('hey ]"/* ]] - ]]]'), ' hello world c=[3]')
+    set @msg = concat('info:  a=1  nil=    b=', quotename('hey ]"/* ]] - ]]]'), ' hello world c=[3]')
 	raiserror (@msg, 1, 0) with nowait;
 `)
 	require.NoError(t, err)
 	assert.Equal(t,
-		`{"a":1,"b":"hey ]\"/* ]] - ]]]","intest":true,"level":"info","msg":"hello world c=[3]","time":"2000-01-01T00:00:00Z"}`,
+		`{"a":1,"b":"hey ]\"/* ]] - ]]]","intest":true,"level":"info","msg":"hello world c=[3]","nil":null,"time":"2000-01-01T00:00:00Z"}`,
 		strings.TrimSpace(logbuf.String()))
 
 	logbuf.Reset()
@@ -147,4 +147,46 @@ y                   "number 2"
 after
 `, stderr.String())
 
+}
+
+func TestMalformedPrintfRaiserror(t *testing.T) {
+	t.Skip()
+	return
+	// Testbed for printf errors, not a regression test
+	dbi := sqlOpen(t)
+	ctx := context.Background()
+
+	var logbuf bytes.Buffer
+	log := logrus.StandardLogger()
+	log.Out = &logbuf
+	log.Formatter = &logrus.JSONFormatter{}
+
+	_, err := dbi.ExecContext(ctx,
+		`
+create or alter procedure dbo.TestMalformedPrintfRaiserror
+as begin
+    begin try
+        declare @msg nvarchar(max)
+        declare @bad bigint = 24
+        
+		set @msg = formatmessage('info:test=%d hello world', @bad);
+		raiserror (@msg, 0, 0) with nowait;
+        
+        -- This does not work very well, completely silenced:
+        -- raiserror ('info:count=%d hello world', 0, 0, @bad) with nowait;
+    end try
+	begin catch
+	    -- This catch block doesn't; but it silences errors with level < 10 so that the error
+	    -- above isn't returned to caller... a typical case...
+	    ;throw
+    end catch
+end
+`)
+	require.NoError(t, err)
+
+	_, err = dbi.ExecContext(
+		With(ctx, log, dbi),
+		`dbo.TestMalformedPrintfRaiserror`,
+	)
+	require.NoError(t, err)
 }

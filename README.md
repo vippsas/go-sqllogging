@@ -24,19 +24,35 @@ func init() {
 	`my_stored_procedure`, ...)
 ```
 
-To use it from Microsoft SQL the best way is `raiserror ... with nowait`
-with priority 0; some generic examples:
+To use it from Microsoft SQL the underlying mechanism is `raiserror ... with nowait`.
+So for instance the following will work fine:
 ```sql
-raiserror ('info:This is a test', 0, 0) with nowait;
-
--- Log any string; need a separate variable
-declare @msg varchar(max);
-set @msg = concat('info:', 'test=', 'yes', ' ', 'This is a test')
-raiserror (@msg, 0, 0) with nowait;
-
--- Use of printf built into raiserror:
-raiserror ('test=%d count=%d This is a test', 0, 0, 1, 10) with nowait;
+raiserror ('info:stringfield=[hello world] intfield=3 nilfield= This is a test', 0, 0) with nowait;
 ```
+Instead of using this interface directly we recommend the stored procedure
+in [sql/mssql_logging.sql](sql/mssql_logging.sql). Then the same example
+becomes:
+```sql
+exec [code].log 'info'
+    , 'stringfield', 'hello world'
+    , 'intfield', @myIntVar
+    , 'nilfield', null
+    , @msg = 'This is a test'
+```
+Unfortunately, there is no way in SQL to support expressions in stored procedure
+calls, so only literals and variables are supported in this construct.
+
+**Note:** The `print` command can use expressions, but does not
+support `with nowait` option so that the log message is only sent over the
+network after the full batch has completed running. Therefore this library
+builds on `raiserror` instead which can provide immediate logging.
+
+**Note:** There is a version of printf built into raiserror too that one
+can use instead of `[code].log` or pre-concatenating strings. However,
+using it is a bit tricky because any mistake you make (e.g., supply `%d`
+instead of `%I64d` for a `bigint` parameter) the error is likely to be completely
+silenced (whether it is depend on the context; the error level, stored procedure
+or not, try-block or not, etc).
 
 ## Features
 
@@ -56,12 +72,23 @@ during debugging. This is not suitable for production code
 (instead, configure a custom logger using `sqllogging.WithLogger`
 that writes to stderr).
 
-### Log fields
+### Log fields and the string format
 
+The "porcelain" command `[code].log()` will assemble the log string, so if you
+use that you don't need to worry about the details:
+```json
+exec [code].log 'info',
+    , 'numericfield', 1
+    , 'stringfield', 'a string'
+    @msg = 'Here comes the message. thisIs=NotAField.'
+;
+```
+
+What happens under the hood:
 Assuming a proper log level (not `stderr`) has been chosen,
 fields will be parsed from the log string, like this:
 ```sql
-raiserror ('info:numericfield=1 stringfield=[a string] Here comes the mesage. thisIs=NotAField.', 0, 0) with nowait;
+raiserror ('info:numericfield=1 stringfield=[a string] Here comes the message. thisIs=NotAField.', 0, 0) with nowait;
 ```
 
 Fields must be at the beginning of the string.
@@ -88,7 +115,7 @@ Example:
 ```sql
 select top(100) a, b, c into ##log1 from mytable;
 
-raiserror ('stderr:##log1', 0, 0) with nowait
+exec [code].log 'stderr', @table='##log1'
 ```
 
 * The table should be a cross-section temporary `##`-table

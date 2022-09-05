@@ -64,11 +64,12 @@ func TestParseKeyValuePair(t *testing.T) {
 		kv    keyValue
 		found bool
 	}{
+		{input: "abc=", kv: keyValue{"abc", nil}, found: true},
+		{input: "abc=  ", kv: keyValue{"abc", nil}, found: true},
 		{input: "a=1", kv: keyValue{"a", 1}, found: true},
 		{input: "abc=[1]", kv: keyValue{"abc", "1"}, found: true},
 		{input: "a=1  ", kv: keyValue{"a", 1}, found: true},
 		{input: "abc=[1]  ", kv: keyValue{"abc", "1"}, found: true},
-		{input: "abc=", found: false},
 		{input: " a=1", found: false},
 	}
 	for i, tc := range tests {
@@ -92,8 +93,8 @@ func TestParseFields(t *testing.T) {
 		msg    string
 	}{
 		{
-			input:  "one=[aaa]two=[bbb]three=3",
-			fields: logrus.Fields{"one": "aaa", "two": "bbb", "three": 3},
+			input:  "one=[aaa]two=[bbb]three=3 four=",
+			fields: logrus.Fields{"one": "aaa", "two": "bbb", "three": 3, "four": nil},
 			msg:    "",
 		},
 		{
@@ -109,8 +110,8 @@ func TestParseFields(t *testing.T) {
 		},
 		{
 			// allow whitespace between entries
-			input:  "a=[1] \t \n b=[2]  \t \t \t \n c=[3] \t  \n   msg",
-			fields: logrus.Fields{"a": "1", "b": "2", "c": "3"},
+			input:  "nil= a=[1] \t \n b=[2]  \t \t \t \n c=[3] \t  \n   msg",
+			fields: logrus.Fields{"a": "1", "b": "2", "c": "3", "nil": nil},
 			msg:    "msg",
 		},
 	}

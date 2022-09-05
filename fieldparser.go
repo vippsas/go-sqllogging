@@ -25,9 +25,11 @@ func (s *scanner) skipWhitespace() {
 	s.pos = len(s.input)
 }
 
+const eof rune = -1
+
 func (s *scanner) peek(offset int) rune {
 	if s.pos+offset >= len(s.input) {
-		return utf8.RuneError
+		return eof
 	} else {
 		r, _ := utf8.DecodeRuneInString(s.input[s.pos+offset:])
 		return r
@@ -91,18 +93,9 @@ type keyValue struct {
 	value interface{}
 }
 
-type valueType int
-
-const (
-	stringValue valueType = iota
-	intValue
-	noValue
-)
-
 // parses a key; it is only a key if followed by `=[` or `=\d`,
 // otherwise return empty string. The position will be after `=[`
-// for stringValue and after `=` for intValue; unaltered position
-// for noValue
+// for stringValue and after `=` for intValue
 func parseKeyValue(s *scanner) (kv keyValue, found bool) {
 	var key strings.Builder
 	var value interface{}
@@ -115,11 +108,16 @@ loop:
 			key.WriteRune(r)
 		} else if i > 0 && r == '=' {
 			s.pos += i + 1
-			if s.peek(0) == '[' {
+			nextRune := s.peek(0)
+			if nextRune == '[' { // string
 				s.pos++
 				value, valueFound = parseStringValue(s)
 				break loop
-			} else {
+			} else if unicode.IsSpace(nextRune) || nextRune == eof { // nil
+				value = nil
+				valueFound = true
+				break loop
+			} else { // try for integer
 				value, valueFound = parseIntValue(s)
 				break loop
 			}
@@ -154,7 +152,8 @@ func parseFields(input string) (fields logrus.Fields, msg string) {
 			if fields == nil {
 				fields = make(logrus.Fields)
 			}
-			fields[kv.key] = kv.value
+			value := kv.value
+			fields[kv.key] = value
 		} else {
 			msg = s.input[s.pos:]
 			return

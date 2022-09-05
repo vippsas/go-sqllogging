@@ -99,6 +99,13 @@ type LogrusLogger struct {
 var logTableNameRegexp = regexp.MustCompile(`^##log[a-z0-9_]+$`)
 
 func (l LogrusLogger) Log(ctx context.Context, category msdsn.Log, msg string) {
+
+	if category&msdsn.LogMessages != 0 && strings.HasPrefix(msg, "Error: 50000") &&
+		strings.Contains(msg, "The error is printed in terse mode because there was error during formatting") {
+		// hack to help a common usage error..with bad error message from mssql...
+		msg = "error:Wrong format string provided to formatmessage()"
+	}
+
 	logger := l.Logger
 	level, logmsg, found := strings.Cut(msg, ":")
 	if !found {
