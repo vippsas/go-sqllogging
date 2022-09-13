@@ -48,6 +48,16 @@ create procedure [code].log(
     @msg varchar(max) = null
 )
 as begin
+    if @table is not null
+    begin
+        -- Copy the table into a new shared ##table. Then the caller should
+        -- free the table passed in after return.
+        declare @tmptable nvarchar(max) = concat('##log', replace(lower(newid()), '-', ''))
+        declare @tmptablesql nvarchar(max) = concat('select * into ', @tmptable, ' from ', @table)
+        exec sp_executesql @tmptablesql
+        set @table = @tmptable
+    end
+
     declare @m nvarchar(max) = concat(@level, ':')
     if @v1 is not null set @m = concat(@m, @k1, '=', [code].log_quote_value(@v1), ' ')
     if @v2 is not null set @m = concat(@m, @k2, '=', [code].log_quote_value(@v2), ' ')

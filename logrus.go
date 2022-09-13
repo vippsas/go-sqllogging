@@ -96,7 +96,7 @@ type LogrusLogger struct {
 }
 
 // For simplicty, only support a very restricted set of names for log tables..
-var logTableNameRegexp = regexp.MustCompile(`^##log[a-z0-9_]+$`)
+var logTableNameRegexp = regexp.MustCompile(`^##[a-z0-9A-Z_]+$`)
 
 func (l LogrusLogger) Log(ctx context.Context, category msdsn.Log, msg string) {
 

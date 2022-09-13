@@ -105,31 +105,26 @@ raiserror (@msg, 0, 0) with nowait;
 ### Dump tables
 
 There is support for dumping table contents to logs.
-In MS SQL, if you create a table with a name starting
-`##`, it can be accessed by other connections. Then,
-if you log *only* the name of the table starting with `##`
-then this library will open a second connection
-to the DB to download the contents.
+The way this is done is (probably) not ready for high volume OLTP;
+use it for slow batch jobs.
+
 Example:
 
 ```sql
-select top(100) a, b, c into ##log1 from mytable;
-
-exec [code].log 'stderr', @table='##log1'
+select top(100) a, b, c into #log1 from mytable;
+exec [code].log 'stderr', @table='#log1'
+drop table #log1
 ```
 
-* The table should be a cross-section temporary `##`-table
-  containing any data.
-* The logging library will pick up the table name starting with
-  `##` and open a 2nd connection to the database to fetch
-  and log the contents, using the optional order by clause.
-* After the log statement, the table should be left alone.
-  The logging utility will `drop` it after logging it.
-* The log query will be `select top(1000) * from ##log1 order by 1`;
-  i.e. max 1000 rows and order by the 1st column.
+The table name is only used to communicate the data to `[code].log`
+so it can be dropped afterwards (which is the caller's responsibility).
 
+Under the hood, `[code].log` will copy the table to a new
+table with a random name starting with `##`, and pass that name
+to the this library as part of an error message. Then this library
+will open a 2nd database connection to fetch data from this temporary
+table, and drop it when it is done.
 
 This feature is the reason for passing the `*sql.DB` instance
 to `sqllog.With()`. If you do not use this feature you may
-safely pass `nil` instead, and `##log1` would be logged the
-regular way.
+safely pass `nil` instead.
