@@ -53,7 +53,7 @@ as begin
         -- Copy the table into a new shared ##table. Then the caller should
         -- free the table passed in after return.
         declare @tmptable nvarchar(max) = concat('##log', replace(lower(newid()), '-', ''))
-        declare @tmptablesql nvarchar(max) = concat('select * into ', @tmptable, ' from ', @table)
+        declare @tmptablesql nvarchar(max) = concat('select * into ', @tmptable, ' from ', quotename(@table))
         exec sp_executesql @tmptablesql
         set @table = @tmptable
     end
