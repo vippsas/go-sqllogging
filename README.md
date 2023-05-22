@@ -19,9 +19,18 @@ func init() {
 	sqllogging.InstallMssql()  
 }
 
-... = dbi.ExecContext(
-	sqllogging.With(ctx, logger.WithField("inSql", true), dbi),
-	`my_stored_procedure`, ...)
+// Important to add "&log=3" to the connection DSN
+// so that the SQL driver will attempt to log (and call the
+// hook installed above).
+// PS: Adjust this as appropriate depending on your DSN format etc
+dsnWithLog := dsn + fmt.Sprintf("&log=%d", int(msdsn.LogMessages|msdsn.LogErrors))
+sqlConnPool := sql.Open("sqlserver", dsnWithLog) 
+
+// Finally, per call:
+// 1) Set up a context with the attached logger *and* a link to the connection pool
+sqlCtx := sqllogging.With(ctx, logger.WithField("inSql", true), sqlConnPool)
+// 2) Execute using that context
+... = sqlConnPool.ExecContext(sqlCtx, "my_stored_procedure", ...)
 ```
 
 To use it from Microsoft SQL the underlying mechanism is `raiserror ... with nowait`.
