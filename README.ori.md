@@ -2,8 +2,6 @@
 
 This library has been deprecated.  See [go-querysql](https://github.com/vippsas/go-querysql) instead; go-querysql also has logging (and now monitoring) capabilities.
 
-[Old docks]()
-
 
 # go-sqllogging: Tools for logging from SQL
 
