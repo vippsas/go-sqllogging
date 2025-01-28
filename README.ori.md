@@ -10,7 +10,7 @@ to the service output. This package facilitates this for the
 following combination:
 
 * Go
-* SQL driver [go-mssql](github.com/denisenkom/go-mssqldb)
+* SQL driver [go-mssql](github.com/microsoft/go-mssqldb)
 * Logging library [logrus](github.com/sirupsen/logrus)
 
 ## Basic usage

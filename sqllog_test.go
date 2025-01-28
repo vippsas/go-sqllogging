@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	_ "github.com/denisenkom/go-mssqldb"
+	_ "github.com/microsoft/go-mssqldb"
 	"github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
 )
