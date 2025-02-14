@@ -1,6 +1,6 @@
 module github.com/vippsas/go-sqllogging
 
-go 1.18
+go 1.22.12
 
 require (
 	github.com/alecthomas/repr v0.1.0
